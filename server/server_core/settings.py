@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party apps
     'corsheaders',
+    'rest_framework',
+    'rest_framework_simplejwt',
     # Local apps
     'core',
     'inventory',
@@ -148,3 +150,21 @@ MAILERS = {
 }
 
 AUTH_USER_MODEL = 'users.CustomUser'
+
+# DRF Settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# SimpleJWT Settings
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'AUTHORIZATION_HEADER_TYPES': ('Bearer',),
+}
