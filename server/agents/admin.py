@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import AIRecommendation
 
-# Register your models here.
+@admin.register(AIRecommendation)
+class AIRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'store', 'recommendation_type', 'is_resolved', 'created_at')
+    list_filter = ('recommendation_type', 'is_resolved', 'store')
+    search_fields = ('product__name', 'store__name')
