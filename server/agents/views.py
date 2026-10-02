@@ -1,27 +1,55 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from .models import AIRecommendation
 from .serializers import AIRecommendationSerializer
+from .planner import PlannerAgent
 
 class AIRecommendationViewSet(viewsets.ModelViewSet):
     serializer_class = AIRecommendationSerializer
-    permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'ADMIN':
+        if user.is_superuser or user.role == 'ADMIN':
             return AIRecommendation.objects.all()
         if hasattr(user, 'store'):
             return AIRecommendation.objects.filter(store=user.store)
         return AIRecommendation.objects.none()
+
+    # Create a dynamic REST endpoint: POST /api/agents/recommendations/generate/
+    @action(detail=False, methods=['post'])
+    def generate(self, request):
+        user = request.user
+        if not hasattr(user, 'store'):
+            return Response({"error": "No store associated with this user."}, status=400)
+            
+        planner = PlannerAgent(user.store)
         
-    def perform_create(self, serializer):
-        user = self.request.user
-        if hasattr(user, 'store') and user.role != 'ADMIN':
-            product = serializer.validated_data.get('product')
-            if product and product.store != user.store:
-                raise PermissionDenied("Product doesn't belong to your store.")
-            serializer.save(store=user.store)
-        else:
-            serializer.save()
+        # Erase outdated recommendations to keep the user's dashboard completely fresh and uncluttered
+        AIRecommendation.objects.filter(store=user.store).delete()
+        
+        try:
+            created = planner.generate_recommendations()
+            return Response({
+                "message": f"Successfully generated {created} new anomaly recommendations.",
+                "created": created
+            }, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=False, methods=['post'])
+    def ask(self, request):
+        user = request.user
+        if not hasattr(user, 'store'):
+            return Response({"error": "No store associated with this user."}, status=400)
+            
+        question = request.data.get('question')
+        if not question:
+            return Response({"error": "Question is absolutely required."}, status=400)
+            
+        planner = PlannerAgent(user.store)
+        try:
+            answer = planner.ask_question(question)
+            return Response({"answer": answer}, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

@@ -38,11 +38,15 @@ class ExecutorAgent:
             
             supplier_lead_time = product.supplier.lead_time_days if product.supplier else 0
             
-            # Anomaly 1: We will run out of stock before the supplier can restock us (plus 2 days of buffer)
-            if days_of_stock_left <= (supplier_lead_time + 2):
+            # Anomaly 1: Hard Limit - Stock is literally below the owner's defined reorder threshold!
+            if product.current_stock <= product.reorder_level:
+                status = 'URGENT_REORDER'
+                
+            # Anomaly 2: Math Projection - We are selling so fast we will run out before supplier restocks us
+            elif days_of_stock_left <= (supplier_lead_time + 2) and velocity > 0:
                 status = 'URGENT_REORDER'
             
-            # Anomaly 2: Dead stock - velocity is super low but we have huge stock above reorder limits
+            # Anomaly 3: Dead stock - velocity is super low but we have huge stock above reorder limits
             elif velocity < 0.2 and product.current_stock > (product.reorder_level * 2):
                 status = 'OVERSTOCK'
 
