@@ -75,7 +75,7 @@ class PlannerAgent:
         from datetime import date, timedelta
         
         # 1. Gather live mathematical context of this exact owner's database
-        products = Product.objects.filter(store=self.store)
+        products = Product.objects.filter(store=self.store, is_active=True)
         start_date = date.today() - timedelta(days=30)
         
         context = "Here is the exact live snapshot of the user's Inventory right now:\n"
