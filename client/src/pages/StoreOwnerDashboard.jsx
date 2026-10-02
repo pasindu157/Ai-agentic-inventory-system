@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut } from 'lucide-react';
+import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut, ShieldCheck, Zap, Crown } from 'lucide-react';
 import api from '../services/api';
 import AddProductModal from '../components/AddProductModal';
 import AddSupplierModal from '../components/AddSupplierModal';
 import EditProductModal from '../components/EditProductModal';
+import UpgradePlanModal from '../components/UpgradePlanModal';
 import './Dashboard.css';
 
 const StoreOwnerDashboard = () => {
@@ -24,19 +25,27 @@ const StoreOwnerDashboard = () => {
   const [askingAI, setAskingAI] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
 
+  // Subscription Plan State
+  const [subscriptionPlan, setSubscriptionPlan] = useState('STARTER');
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
 
-        const [recRes, prodRes] = await Promise.all([
+        const [recRes, prodRes, userRes] = await Promise.all([
           api.get('agents/recommendations/', { headers }),
-          api.get('inventory/products/', { headers })
+          api.get('inventory/products/', { headers }),
+          api.get('users/me/', { headers }).catch(() => null)
         ]);
 
         setRecommendations(recRes.data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)));
         setProducts(prodRes.data);
+        if (userRes && userRes.data && userRes.data.store) {
+          setSubscriptionPlan(userRes.data.store.subscription_plan || 'STARTER');
+        }
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -46,6 +55,12 @@ const StoreOwnerDashboard = () => {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (subscriptionPlan !== 'ENTERPRISE') {
+      setShowAI(false);
+    }
+  }, [subscriptionPlan]);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -86,6 +101,28 @@ const StoreOwnerDashboard = () => {
     }
   };
 
+  const handleAddProductClick = () => {
+    if (subscriptionPlan === 'STARTER' && products.length >= 5) {
+      alert("⚠️ You have reached the 5-product limit on the Starter Plan.\n\nPlease upgrade to Pro or Enterprise for unlimited products!");
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleToggleAI = () => {
+    if (showAI) {
+      setShowAI(false);
+      return;
+    }
+    if (subscriptionPlan !== 'ENTERPRISE') {
+      alert("🔒 Agentic AI Insights & Ask Analyst Chat are exclusive to the Enterprise AI Plan.\n\nPlease upgrade your subscription to unlock Gemini!");
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+    fetchFreshRecommendations();
+  };
+
   const fetchFreshRecommendations = async () => {
     try {
       setGeneratingAI(true);
@@ -110,6 +147,12 @@ const StoreOwnerDashboard = () => {
 
   const handleAskAI = async (e) => {
     e.preventDefault();
+    if (subscriptionPlan !== 'ENTERPRISE') {
+      alert("🔒 Gemini AI Analyst Chat is exclusive to the Enterprise AI Plan.\n\nPlease upgrade your subscription to consult the AI Analyst!");
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setAskingAI(true);
     setAiResponse('');
 
@@ -149,6 +192,29 @@ const StoreOwnerDashboard = () => {
     }
   };
 
+  const renderPlanBadge = () => {
+    switch (subscriptionPlan) {
+      case 'PRO':
+        return (
+          <button onClick={() => setIsUpgradeModalOpen(true)} className="plan-badge pro" title="Click to view subscription plans">
+            <Zap size={15} /> Pro Growth ($29/mo)
+          </button>
+        );
+      case 'ENTERPRISE':
+        return (
+          <button onClick={() => setIsUpgradeModalOpen(true)} className="plan-badge enterprise" title="Click to view subscription plans">
+            <Crown size={15} /> Enterprise AI ($79/mo)
+          </button>
+        );
+      default:
+        return (
+          <button onClick={() => setIsUpgradeModalOpen(true)} className="plan-badge starter" title="Click to view subscription plans">
+            <ShieldCheck size={15} /> Starter Plan (Free) — <span>Upgrade</span>
+          </button>
+        );
+    }
+  };
+
   if (loading) {
     return <div className="dashboard-loading">Loading AI Dashboard Insights...</div>;
   }
@@ -160,9 +226,12 @@ const StoreOwnerDashboard = () => {
           <Package size={28} className="brand-icon"/>
           <h1>Agentic <span>Inventory</span></h1>
         </div>
-        <button onClick={handleLogout} className="logout-btn">
-          <LogOut size={16} /> Logout
-        </button>
+        <div className="header-actions">
+          {renderPlanBadge()}
+          <button onClick={handleLogout} className="logout-btn">
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
       </header>
 
       <main className="dashboard-main">
@@ -175,24 +244,35 @@ const StoreOwnerDashboard = () => {
             
             <div style={{display: 'flex', gap: '1rem'}}>
               <button 
-                  onClick={() => {
-                    if (!showAI) {
-                       fetchFreshRecommendations();
-                    } else {
-                       setShowAI(false);
-                    }
-                  }} 
+                  onClick={handleToggleAI} 
                   className="btn-save" 
                   disabled={generatingAI}
-                  style={{padding:'0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: showAI ? '#64748b' : 'var(--primary)', border: 'none', color: 'white', borderRadius: '8px', cursor: generatingAI ? 'wait' : 'pointer', fontWeight: '600', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'}}
+                  style={{
+                    padding:'0.5rem 1rem', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem', 
+                    background: subscriptionPlan !== 'ENTERPRISE' ? '#94a3b8' : showAI ? '#64748b' : 'var(--primary)', 
+                    border: 'none', 
+                    color: 'white', 
+                    borderRadius: '8px', 
+                    cursor: generatingAI ? 'wait' : 'pointer', 
+                    fontWeight: '600', 
+                    transition: 'all 0.2s', 
+                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+                  }}
               >
-                ✨ {generatingAI ? 'AI is Analyzing Stock...' : showAI ? 'Hide AI Insights' : 'Generate AI Insights'}
+                {subscriptionPlan !== 'ENTERPRISE' ? '🔒 AI Insights (Enterprise)' : generatingAI ? '✨ AI is Analyzing Stock...' : showAI ? '✨ Hide AI Insights' : '✨ Generate AI Insights'}
               </button>
               <button onClick={() => setIsSupplierModalOpen(true)} className="logout-btn" style={{color: '#475569', borderColor: '#cbd5e1', fontWeight: '600'}}>
                 + Add Supplier
               </button>
-              <button onClick={() => setIsModalOpen(true)} className="logout-btn" style={{color: 'var(--primary)', borderColor: '#bfdbfe', fontWeight: '600'}}>
-                + Add Product
+              <button 
+                onClick={handleAddProductClick} 
+                className="logout-btn" 
+                style={{color: 'var(--primary)', borderColor: '#bfdbfe', fontWeight: '600'}}
+              >
+                + Add Product {subscriptionPlan === 'STARTER' && products.length >= 5 ? '(Limit 5)' : ''}
               </button>
             </div>
           </div>
@@ -327,6 +407,12 @@ const StoreOwnerDashboard = () => {
         onClose={() => setIsEditModalOpen(false)} 
         product={editingProduct} 
         onProductUpdated={handleProductUpdated} 
+      />
+      <UpgradePlanModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        currentPlan={subscriptionPlan}
+        onPlanUpgraded={(newPlan) => setSubscriptionPlan(newPlan)}
       />
     </div>
   );

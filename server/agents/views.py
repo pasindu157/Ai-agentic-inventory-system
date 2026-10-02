@@ -23,6 +23,9 @@ class AIRecommendationViewSet(viewsets.ModelViewSet):
         if not hasattr(user, 'store'):
             return Response({"error": "No store associated with this user."}, status=400)
             
+        if user.role != 'ADMIN' and user.store.subscription_plan != 'ENTERPRISE':
+            return Response({"error": "AI Insights are exclusive to the Enterprise AI Plan. Please upgrade your subscription to unlock Gemini."}, status=403)
+
         planner = PlannerAgent(user.store)
         
         # Erase outdated recommendations to keep the user's dashboard completely fresh and uncluttered
@@ -43,6 +46,9 @@ class AIRecommendationViewSet(viewsets.ModelViewSet):
         if not hasattr(user, 'store'):
             return Response({"error": "No store associated with this user."}, status=400)
             
+        if user.role != 'ADMIN' and user.store.subscription_plan != 'ENTERPRISE':
+            return Response({"error": "Gemini AI Analyst Chat is exclusive to the Enterprise AI Plan. Please upgrade your subscription."}, status=403)
+
         question = request.data.get('question')
         if not question:
             return Response({"error": "Question is absolutely required."}, status=400)
