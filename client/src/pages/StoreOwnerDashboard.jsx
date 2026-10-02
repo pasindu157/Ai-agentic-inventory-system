@@ -68,6 +68,24 @@ const StoreOwnerDashboard = () => {
     setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
   };
 
+  const handleDeleteProduct = async (productId, productName) => {
+    if (!window.confirm(`Are you sure you want to soft-delete "${productName}"?\n\nIt will be archived and removed from active inventory, but all historical sales data will remain intact for AI analytics.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      await api.delete(`inventory/products/${productId}/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Immediately remove the soft-deleted item from state
+      setProducts(products.filter(p => p.id !== productId));
+    } catch (err) {
+      console.error("Soft delete failed:", err);
+      alert("Failed to delete product. Please try again.");
+    }
+  };
+
   const fetchFreshRecommendations = async () => {
     try {
       setGeneratingAI(true);
@@ -187,7 +205,7 @@ const StoreOwnerDashboard = () => {
                       <td><strong>{product.current_stock}</strong></td>
                       <td>{product.reorder_level}</td>
                       <td>${Number(product.unit_cost).toFixed(2)}</td>
-                      <td style={{textAlign: 'center'}}>
+                      <td style={{textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '0.5rem'}}>
                         <button 
                            onClick={() => handleEditClick(product)} 
                            style={{background: 'transparent', border: '1px solid #cbd5e1', padding: '0.35rem 0.85rem', borderRadius: '6px', cursor: 'pointer', color: '#475569', fontWeight: '600', fontSize: '0.85rem', transition: 'all 0.15s'}}
@@ -195,6 +213,14 @@ const StoreOwnerDashboard = () => {
                            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#475569'; }}
                         >
                           Edit
+                        </button>
+                        <button 
+                           onClick={() => handleDeleteProduct(product.id, product.name)} 
+                           style={{background: 'transparent', border: '1px solid #fecaca', padding: '0.35rem 0.85rem', borderRadius: '6px', cursor: 'pointer', color: '#dc2626', fontWeight: '600', fontSize: '0.85rem', transition: 'all 0.15s'}}
+                           onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                           onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#fecaca'; }}
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>

@@ -9,11 +9,15 @@ class TenantModelViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
+        qs = self.queryset
+        if hasattr(self.model, 'is_active'):
+            qs = qs.filter(is_active=True)
+            
         if user.role == 'ADMIN':
-            return self.queryset.all()
+            return qs.all()
         if hasattr(user, 'store'):
-            return self.queryset.filter(store=user.store)
-        return self.queryset.none()
+            return qs.filter(store=user.store)
+        return qs.none()
         
     def perform_create(self, serializer):
         user = self.request.user
@@ -22,11 +26,20 @@ class TenantModelViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
+    def perform_destroy(self, instance):
+        if hasattr(instance, 'is_active'):
+            instance.is_active = False
+            instance.save()
+        else:
+            instance.delete()
+
 class SupplierViewSet(TenantModelViewSet):
+    model = Supplier
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
 
 class ProductViewSet(TenantModelViewSet):
+    model = Product
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 

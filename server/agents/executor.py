@@ -15,7 +15,7 @@ class ExecutorAgent:
         Analyzes all products in the store mathematically.
         Returns a structured dictionary of reports that the Planner Agent (Gemini) can quickly parse.
         """
-        products = Product.objects.filter(store=self.store)
+        products = Product.objects.filter(store=self.store, is_active=True)
         report = []
 
         for product in products:
