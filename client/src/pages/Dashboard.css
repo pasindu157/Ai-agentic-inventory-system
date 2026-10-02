@@ -289,3 +289,54 @@
   color: #16a34a;
   border-color: #bbf7d0;
 }
+
+/* Header Plan Badges */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.plan-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.plan-badge.starter {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+.plan-badge.starter span {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.plan-badge.starter:hover {
+  background-color: #e2e8f0;
+}
+
+.plan-badge.pro {
+  background-color: #eff6ff;
+  color: var(--primary);
+  border-color: #bfdbfe;
+}
+.plan-badge.pro:hover {
+  background-color: #dbeafe;
+}
+
+.plan-badge.enterprise {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+.plan-badge.enterprise:hover {
+  background-color: #ede9fe;
+}

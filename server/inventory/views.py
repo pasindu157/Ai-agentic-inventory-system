@@ -43,6 +43,19 @@ class ProductViewSet(TenantModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'store') and user.role != 'ADMIN':
+            store = user.store
+            if store.subscription_plan == 'STARTER':
+                active_count = Product.objects.filter(store=store, is_active=True).count()
+                if active_count >= 5:
+                    from rest_framework.exceptions import ValidationError
+                    raise ValidationError({"detail": "Starter plan limit reached. You can only manage up to 5 active products on the Starter plan. Upgrade to Pro for unlimited products."})
+            serializer.save(store=store)
+        else:
+            serializer.save()
+
 class SalesRecordViewSet(TenantModelViewSet):
     queryset = SalesRecord.objects.all()
     serializer_class = SalesRecordSerializer
