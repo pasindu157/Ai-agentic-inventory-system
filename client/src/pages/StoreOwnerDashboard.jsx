@@ -136,6 +136,19 @@ const StoreOwnerDashboard = () => {
     }
   };
 
+  const getStockStatusBadge = (product) => {
+    const stock = Number(product.current_stock);
+    const reorder = Number(product.reorder_level);
+
+    if (stock <= reorder) {
+      return <span className="status-pill status-pill-urgent">⚠️ Urgent Reorder</span>;
+    } else if (stock <= reorder * 1.5) {
+      return <span className="status-pill status-pill-low">📉 Low Stock</span>;
+    } else {
+      return <span className="status-pill status-pill-optimal">✓ Optimal</span>;
+    }
+  };
+
   if (loading) {
     return <div className="dashboard-loading">Loading AI Dashboard Insights...</div>;
   }
@@ -190,6 +203,7 @@ const StoreOwnerDashboard = () => {
                 <tr>
                   <th>SKU</th>
                   <th>Product Name</th>
+                  <th>Status</th>
                   <th>Current Stock</th>
                   <th>Reorder Level</th>
                   <th>Unit Cost</th>
@@ -202,6 +216,7 @@ const StoreOwnerDashboard = () => {
                     <tr key={product.id}>
                       <td>{product.sku}</td>
                       <td>{product.name}</td>
+                      <td>{getStockStatusBadge(product)}</td>
                       <td><strong>{product.current_stock}</strong></td>
                       <td>{product.reorder_level}</td>
                       <td>${Number(product.unit_cost).toFixed(2)}</td>
