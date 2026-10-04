@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
-        fields = ('id', 'name', 'subscription_plan', 'created_at')
+        fields = ('id', 'name', 'subscription_plan', 'is_active', 'created_at')
 
 class UserSerializer(serializers.ModelSerializer):
     store = StoreSerializer(read_only=True)
