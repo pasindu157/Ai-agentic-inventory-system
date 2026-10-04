@@ -3,13 +3,18 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import CustomUser
+from .models import CustomUser, AuditLog
 from .serializers import UserRegistrationSerializer, UserSerializer
+from .utils import log_audit_event
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = UserRegistrationSerializer
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_audit_event(user, 'USER_REGISTERED', f"New store registered: {user.username}", self.request)
 
 class UserProfileView(generics.RetrieveAPIView):
     permission_classes = (IsAuthenticated,)
@@ -26,6 +31,7 @@ class LogoutView(APIView):
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
+            log_audit_event(request.user, 'USER_LOGOUT', 'User logged out', request)
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -34,23 +40,25 @@ class UpgradePlanView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request):
-        plan = request.data.get('plan')
-        valid_plans = ['STARTER', 'PRO', 'ENTERPRISE']
-        if plan not in valid_plans:
-            return Response({'error': f'Invalid plan choice. Choose from {valid_plans}'}, status=status.HTTP_400_BAD_REQUEST)
-        
         user = request.user
+        new_plan = request.data.get('plan')
+        
+        valid_plans = ['STARTER', 'PRO', 'ENTERPRISE']
+        if new_plan not in valid_plans:
+            return Response({'error': f'Invalid plan choice. Choose from {valid_plans}'}, status=status.HTTP_400_BAD_REQUEST)
+
         if not hasattr(user, 'store'):
-            return Response({'error': 'User does not own a store'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        store = user.store
-        store.subscription_plan = plan
-        store.save()
-        
-        from .serializers import StoreSerializer
+            return Response({'error': 'No store associated with this account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_plan = user.store.subscription_plan
+        user.store.subscription_plan = new_plan
+        user.store.save()
+
+        log_audit_event(user, 'PLAN_UPGRADED', f"Upgraded plan from {old_plan} to {new_plan}", request)
+
         return Response({
-            'message': f'Subscription successfully updated to {plan}',
-            'store': StoreSerializer(store).data
+            'message': f'Subscription upgraded to {new_plan} successfully!',
+            'subscription_plan': user.store.subscription_plan
         }, status=status.HTTP_200_OK)
 
 class AdminPlatformOverviewView(APIView):
@@ -122,8 +130,11 @@ class AdminChangeStorePlanView(APIView):
         except Store.DoesNotExist:
             return Response({'error': 'Store not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        old_plan = store.subscription_plan
         store.subscription_plan = plan
         store.save()
+
+        log_audit_event(user, 'ADMIN_PLAN_CHANGED', f"Admin changed Store '{store.name}' plan from {old_plan} to {plan}", request)
 
         return Response({
             'message': f"Store '{store.name}' subscription updated to {plan}",
@@ -150,8 +161,30 @@ class AdminToggleStoreActiveView(APIView):
         store.save()
 
         status_str = "activated" if store.is_active else "suspended"
+        log_audit_event(user, f'STORE_{status_str.upper()}', f"Admin {status_str} Store '{store.name}' (ID: {store.id})", request)
+
         return Response({
             'message': f"Store '{store.name}' has been {status_str}.",
             'store_id': store.id,
             'is_active': store.is_active
         }, status=status.HTTP_200_OK)
+
+class AdminAuditLogView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+        if not (user.is_superuser or user.role == 'ADMIN'):
+            return Response({'error': 'Permission denied. Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        logs = AuditLog.objects.select_related('user').all()[:100]
+        data = [{
+            'id': log.id,
+            'user': log.user.username if log.user else 'Anonymous',
+            'action': log.action,
+            'details': log.details,
+            'ip_address': log.ip_address,
+            'created_at': log.created_at
+        } for log in logs]
+
+        return Response(data, status=status.HTTP_200_OK)
