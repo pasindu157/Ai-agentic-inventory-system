@@ -84,6 +84,7 @@ class AdminPlatformOverviewView(APIView):
                 'owner_username': store.owner.username,
                 'owner_email': store.owner.email,
                 'subscription_plan': store.subscription_plan,
+                'is_active': store.is_active,
                 'created_at': store.created_at,
                 'active_products_count': p_count
             })
@@ -128,4 +129,29 @@ class AdminChangeStorePlanView(APIView):
             'message': f"Store '{store.name}' subscription updated to {plan}",
             'store_id': store.id,
             'new_plan': store.subscription_plan
+        }, status=status.HTTP_200_OK)
+
+class AdminToggleStoreActiveView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        user = request.user
+        if not (user.is_superuser or user.role == 'ADMIN'):
+            return Response({'error': 'Permission denied. Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .models import Store
+        store_id = request.data.get('store_id')
+        try:
+            store = Store.objects.get(id=store_id)
+        except Store.DoesNotExist:
+            return Response({'error': 'Store not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        store.is_active = not store.is_active
+        store.save()
+
+        status_str = "activated" if store.is_active else "suspended"
+        return Response({
+            'message': f"Store '{store.name}' has been {status_str}.",
+            'store_id': store.id,
+            'is_active': store.is_active
         }, status=status.HTTP_200_OK)

@@ -33,25 +33,39 @@ const StoreOwnerDashboard = () => {
   // Active Navigation Tab ('PRODUCTS' | 'STATS')
   const [activeTab, setActiveTab] = useState('PRODUCTS');
 
+  // Account Suspension State
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [storeName, setStoreName] = useState('');
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
 
-        const [recRes, prodRes, userRes] = await Promise.all([
-          api.get('agents/recommendations/', { headers }),
-          api.get('inventory/products/', { headers }),
-          api.get('users/me/', { headers }).catch(() => null)
-        ]);
-
-        setRecommendations(recRes.data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)));
-        setProducts(prodRes.data);
+        const userRes = await api.get('users/me/', { headers }).catch(() => null);
         if (userRes && userRes.data && userRes.data.store) {
           setSubscriptionPlan(userRes.data.store.subscription_plan || 'STARTER');
+          setStoreName(userRes.data.store.name || '');
+          if (userRes.data.store.is_active === false) {
+            setIsSuspended(true);
+            setLoading(false);
+            return;
+          }
         }
+
+        const [recRes, prodRes] = await Promise.all([
+          api.get('agents/recommendations/', { headers }).catch(() => ({ data: [] })),
+          api.get('inventory/products/', { headers })
+        ]);
+
+        setRecommendations(recRes.data ? recRes.data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)) : []);
+        setProducts(prodRes.data || []);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+        if (error.response && error.response.status === 403 && String(error.response.data?.detail || '').includes('suspended')) {
+          setIsSuspended(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -277,6 +291,28 @@ const StoreOwnerDashboard = () => {
 
   if (loading) {
     return <div className="dashboard-loading">Loading AI Dashboard Insights...</div>;
+  }
+
+  if (isSuspended) {
+    return (
+      <div className="dashboard-container" style={{display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', background:'#f8fafc', padding:'1.5rem'}}>
+        <div style={{maxWidth:'480px', width:'100%', padding:'2.5rem', background:'white', borderRadius:'16px', border:'2px solid #fecaca', boxShadow:'0 20px 25px -5px rgba(239, 68, 68, 0.15)', textAlign:'center'}}>
+          <div style={{width:'72px', height:'72px', background:'#fef2f2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.25rem auto'}}>
+            <AlertTriangle size={38} style={{color:'#dc2626'}} />
+          </div>
+          <h2 style={{color:'#991b1b', margin:'0 0 0.75rem 0', fontSize:'1.5rem'}}>Account Suspended</h2>
+          <p style={{color:'#475569', fontSize:'0.95rem', lineHeight:'1.6', marginBottom:'1.25rem'}}>
+            Your store account (<strong>{storeName || 'Store'}</strong>) has been temporarily suspended by the System Administrator.
+          </p>
+          <p style={{fontSize:'0.85rem', color:'#64748b', marginBottom:'2rem', background:'#f8fafc', padding:'0.75rem', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+            ⚠️ Access to product management, inventory statistics, and AI tools is currently restricted. Please contact support or your system administrator.
+          </p>
+          <button onClick={handleLogout} className="logout-btn" style={{width:'100%', justifyContent:'center', padding:'0.75rem', background:'#dc2626', color:'white', border:'none', borderRadius:'8px', fontWeight:'600', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+            <LogOut size={16} /> Logout Account
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

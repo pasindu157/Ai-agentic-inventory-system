@@ -66,6 +66,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleToggleActive = async (store) => {
+    const actionStr = store.is_active ? "suspend" : "reactivate";
+    if (!window.confirm(`Are you sure you want to ${actionStr} store "${store.name}"?`)) {
+      return;
+    }
+
+    setUpdatingStoreId(store.id);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await api.post('users/admin/toggle-store-active/',
+        { store_id: store.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      await fetchAdminData();
+      alert(`✅ ${response.data.message}`);
+    } catch (err) {
+      console.error("Failed to toggle store status:", err);
+      alert("Failed to update store status.");
+    } finally {
+      setUpdatingStoreId(null);
+    }
+  };
+
   const filteredStores = stores.filter(store => 
     store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.owner_username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,16 +197,17 @@ const AdminDashboard = () => {
                 <tr>
                   <th>Store Name</th>
                   <th>Owner</th>
+                  <th>Account Status</th>
                   <th>Active Products</th>
                   <th>Current Plan</th>
                   <th>Joined Date</th>
-                  <th style={{textAlign: 'center'}}>Admin Action (Change Plan)</th>
+                  <th style={{textAlign: 'center'}}>Admin Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStores.length > 0 ? (
                   filteredStores.map(store => (
-                    <tr key={store.id}>
+                    <tr key={store.id} style={{opacity: store.is_active ? 1 : 0.65}}>
                       <td>
                         <strong>{store.name}</strong>
                       </td>
@@ -191,6 +216,13 @@ const AdminDashboard = () => {
                           <span style={{fontWeight:'600', color:'#334155'}}><User size={13} style={{display:'inline', marginRight:'4px'}} />{store.owner_username}</span>
                           <span style={{fontSize:'0.75rem', color:'#64748b'}}><Mail size={12} style={{display:'inline', marginRight:'4px'}} />{store.owner_email || 'No email'}</span>
                         </div>
+                      </td>
+                      <td>
+                        {store.is_active ? (
+                          <span className="status-pill status-pill-optimal">✓ Active</span>
+                        ) : (
+                          <span className="status-pill status-pill-urgent">🚫 Suspended</span>
+                        )}
                       </td>
                       <td><strong>{store.active_products_count}</strong> Products</td>
                       <td>{getPlanBadge(store.subscription_plan)}</td>
@@ -201,24 +233,44 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td style={{textAlign: 'center'}}>
-                        <select
-                          disabled={updatingStoreId === store.id}
-                          value={store.subscription_plan}
-                          onChange={(e) => handlePlanChange(store.id, e.target.value)}
-                          style={{
-                            padding: '0.4rem 0.75rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontWeight: '600',
-                            fontSize: '0.8rem',
-                            background: 'white',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="STARTER">Starter Plan (Free)</option>
-                          <option value="PRO">Pro Growth ($29/mo)</option>
-                          <option value="ENTERPRISE">Enterprise AI ($79/mo)</option>
-                        </select>
+                        <div style={{display:'flex', gap:'0.5rem', justifyContent:'center', alignItems:'center'}}>
+                          <select
+                            disabled={updatingStoreId === store.id}
+                            value={store.subscription_plan}
+                            onChange={(e) => handlePlanChange(store.id, e.target.value)}
+                            style={{
+                              padding: '0.4rem 0.6rem',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontWeight: '600',
+                              fontSize: '0.8rem',
+                              background: 'white',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="STARTER">Starter Plan (Free)</option>
+                            <option value="PRO">Pro Growth ($29/mo)</option>
+                            <option value="ENTERPRISE">Enterprise AI ($79/mo)</option>
+                          </select>
+                          
+                          <button
+                            disabled={updatingStoreId === store.id}
+                            onClick={() => handleToggleActive(store)}
+                            style={{
+                              padding: '0.4rem 0.75rem',
+                              borderRadius: '6px',
+                              border: store.is_active ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                              background: store.is_active ? '#fef2f2' : '#f0fdf4',
+                              color: store.is_active ? '#dc2626' : '#16a34a',
+                              fontWeight: '600',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {store.is_active ? 'Suspend' : 'Reactivate'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

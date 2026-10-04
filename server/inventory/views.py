@@ -10,6 +10,13 @@ from .serializers import SupplierSerializer, ProductSerializer, SalesRecordSeria
 class TenantModelViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        user = request.user
+        if user.is_authenticated and user.role != 'ADMIN' and hasattr(user, 'store'):
+            if not user.store.is_active:
+                raise PermissionDenied("Your store account has been suspended by System Administrator.")
+
     def get_queryset(self):
         user = self.request.user
         qs = self.queryset
@@ -78,6 +85,9 @@ class StoreStatisticsView(APIView):
         user = request.user
         if not hasattr(user, 'store'):
             return Response({"error": "No store associated with this user."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user.role != 'ADMIN' and not user.store.is_active:
+            raise PermissionDenied("Your store account has been suspended by System Administrator.")
         
         store = user.store
         active_products = Product.objects.filter(store=store, is_active=True)
