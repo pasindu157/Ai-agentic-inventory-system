@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     RegisterView, UserProfileView, LogoutView, UpgradePlanView,
-    AdminPlatformOverviewView, AdminChangeStorePlanView, AdminToggleStoreActiveView
+    AdminPlatformOverviewView, AdminChangeStorePlanView, AdminToggleStoreActiveView, AdminAuditLogView
 )
 
 urlpatterns = [
@@ -12,4 +12,5 @@ urlpatterns = [
     path('admin/overview/', AdminPlatformOverviewView.as_view(), name='admin-overview'),
     path('admin/change-store-plan/', AdminChangeStorePlanView.as_view(), name='admin-change-store-plan'),
     path('admin/toggle-store-active/', AdminToggleStoreActiveView.as_view(), name='admin-toggle-store-active'),
+    path('admin/audit-logs/', AdminAuditLogView.as_view(), name='admin-audit-logs'),
 ]

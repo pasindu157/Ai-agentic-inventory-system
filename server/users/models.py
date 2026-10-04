@@ -34,3 +34,18 @@ class Store(models.Model):
 
     def __str__(self):
         return f"{self.name} [{self.get_subscription_plan_display()}]"
+  
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
+    action = models.CharField(max_length=100)  # e.g., USER_LOGIN, PLAN_CHANGED, STORE_SUSPENDED, AI_QUERY_EXECUTED
+    details = models.TextField(blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        username = self.user.username if self.user else 'Anonymous'
+        return f"[{self.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {username} - {self.action}"

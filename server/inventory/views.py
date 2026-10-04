@@ -78,6 +78,14 @@ class SalesRecordViewSet(TenantModelViewSet):
             return SalesRecord.objects.filter(product__store=user.store)
         return SalesRecord.objects.none()
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'store') and user.role != 'ADMIN':
+            product = serializer.validated_data.get('product')
+            if product.store != user.store:
+                raise PermissionDenied("Product doesn't belong to your store.")
+        serializer.save()
+
 class StoreStatisticsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -135,6 +143,7 @@ class StoreStatisticsView(APIView):
             'total_products_count': total_products_count,
             'total_units_in_stock': total_units_in_stock,
             'total_valuation': round(total_valuation, 2),
+            'total_inventory_valuation': round(total_valuation, 2),
             'avg_unit_cost': avg_unit_cost,
             'health': {
                 'urgent_reorder_count': urgent_reorder_count,
@@ -143,6 +152,11 @@ class StoreStatisticsView(APIView):
                 'urgent_pct': round((urgent_reorder_count / total_products_count * 100), 1) if total_products_count > 0 else 0,
                 'low_pct': round((low_stock_count / total_products_count * 100), 1) if total_products_count > 0 else 0,
                 'optimal_pct': round((optimal_count / total_products_count * 100), 1) if total_products_count > 0 else 0,
+            },
+            'stock_health': {
+                'urgent_reorder_count': urgent_reorder_count,
+                'low_stock_count': low_stock_count,
+                'optimal_count': optimal_count,
             },
             'top_valuable_products': top_5_valuable
         }, status=status.HTTP_200_OK)
