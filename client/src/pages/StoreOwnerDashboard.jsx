@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut, ShieldCheck, Zap, Crown } from 'lucide-react';
+import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut, ShieldCheck, Zap, Crown, BarChart2 } from 'lucide-react';
 import api from '../services/api';
 import AddProductModal from '../components/AddProductModal';
 import AddSupplierModal from '../components/AddSupplierModal';
 import EditProductModal from '../components/EditProductModal';
 import UpgradePlanModal from '../components/UpgradePlanModal';
+import StoreStatistics from './StoreStatistics';
 import './Dashboard.css';
 
 const StoreOwnerDashboard = () => {
@@ -28,6 +29,9 @@ const StoreOwnerDashboard = () => {
   // Subscription Plan State
   const [subscriptionPlan, setSubscriptionPlan] = useState('STARTER');
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  // Active Navigation Tab ('PRODUCTS' | 'STATS')
+  const [activeTab, setActiveTab] = useState('PRODUCTS');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -225,6 +229,44 @@ const StoreOwnerDashboard = () => {
         <div className="header-brand">
           <Package size={28} className="brand-icon"/>
           <h1>Agentic <span>Inventory</span></h1>
+          <nav style={{display:'flex', gap:'0.5rem', marginLeft:'2rem'}}>
+            <button 
+              onClick={() => setActiveTab('PRODUCTS')}
+              style={{
+                padding:'0.45rem 0.9rem',
+                borderRadius:'8px',
+                border: activeTab === 'PRODUCTS' ? '1px solid var(--primary)' : '1px solid #cbd5e1',
+                background: activeTab === 'PRODUCTS' ? '#eff6ff' : 'white',
+                color: activeTab === 'PRODUCTS' ? 'var(--primary)' : '#475569',
+                fontWeight:'600',
+                fontSize:'0.85rem',
+                cursor:'pointer',
+                display:'flex',
+                alignItems:'center',
+                gap:'0.4rem'
+              }}
+            >
+              <Package size={15} /> Product Master
+            </button>
+            <button 
+              onClick={() => setActiveTab('STATS')}
+              style={{
+                padding:'0.45rem 0.9rem',
+                borderRadius:'8px',
+                border: activeTab === 'STATS' ? '1px solid var(--primary)' : '1px solid #cbd5e1',
+                background: activeTab === 'STATS' ? '#eff6ff' : 'white',
+                color: activeTab === 'STATS' ? 'var(--primary)' : '#475569',
+                fontWeight:'600',
+                fontSize:'0.85rem',
+                cursor:'pointer',
+                display:'flex',
+                alignItems:'center',
+                gap:'0.4rem'
+              }}
+            >
+              <BarChart2 size={15} /> Analytics & Stats
+            </button>
+          </nav>
         </div>
         <div className="header-actions">
           {renderPlanBadge()}
@@ -235,8 +277,11 @@ const StoreOwnerDashboard = () => {
       </header>
 
       <main className="dashboard-main">
-        
-        {/* Core Product Tracking is now the FIRST thing the user sees */}
+        {activeTab === 'STATS' ? (
+          <StoreStatistics />
+        ) : (
+          <>
+            {/* Core Product Tracking is now the FIRST thing the user sees */}
         <div className="dashboard-bottom-section">
           
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '1.25rem'}}>
@@ -389,6 +434,8 @@ const StoreOwnerDashboard = () => {
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
 
