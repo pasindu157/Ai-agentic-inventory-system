@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut, ShieldCheck, Zap, Crown, BarChart2 } from 'lucide-react';
+import { Package, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, LogOut, ShieldCheck, Zap, Crown, BarChart2, Download } from 'lucide-react';
 import api from '../services/api';
 import AddProductModal from '../components/AddProductModal';
 import AddSupplierModal from '../components/AddSupplierModal';
@@ -125,6 +125,62 @@ const StoreOwnerDashboard = () => {
       return;
     }
     fetchFreshRecommendations();
+  };
+
+  const handleExportCSV = () => {
+    if (subscriptionPlan === 'STARTER') {
+      alert("🔒 Exporting Inventory CSV reports is exclusive to Pro & Enterprise plans.\n\nPlease upgrade your subscription to unlock CSV exports!");
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
+    if (!products || products.length === 0) {
+      alert("No products available to export.");
+      return;
+    }
+
+    try {
+      const headers = ["SKU", "Product Name", "Supplier ID", "Current Stock", "Reorder Level", "Unit Cost ($)", "Total Value ($)", "Status"];
+      const rows = products.map(p => {
+        const stock = Number(p.current_stock || 0);
+        const reorder = Number(p.reorder_level || 0);
+        const cost = Number(p.unit_cost || 0);
+        const status = stock <= reorder ? "URGENT REORDER" : stock <= reorder * 1.5 ? "LOW STOCK" : "OPTIMAL";
+        
+        let supplierStr = "N/A";
+        if (p.supplier !== null && p.supplier !== undefined) {
+          supplierStr = typeof p.supplier === 'object' ? (p.supplier.name || String(p.supplier.id || '')) : String(p.supplier);
+        }
+        
+        const totalVal = (stock * cost).toFixed(2);
+        
+        return [
+          `"${String(p.sku || '').replace(/"/g, '""')}"`,
+          `"${String(p.name || '').replace(/"/g, '""')}"`,
+          `"${supplierStr.replace(/"/g, '""')}"`,
+          stock,
+          reorder,
+          cost.toFixed(2),
+          totalVal,
+          `"${status}"`
+        ].join(",");
+      });
+
+      const csvString = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Inventory_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV Download error:", err);
+      alert("Failed to generate CSV file.");
+    }
   };
 
   const fetchFreshRecommendations = async () => {
@@ -318,6 +374,14 @@ const StoreOwnerDashboard = () => {
                 style={{color: 'var(--primary)', borderColor: '#bfdbfe', fontWeight: '600'}}
               >
                 + Add Product {subscriptionPlan === 'STARTER' && products.length >= 5 ? '(Limit 5)' : ''}
+              </button>
+              <button 
+                onClick={handleExportCSV} 
+                className="logout-btn" 
+                style={{color: subscriptionPlan === 'STARTER' ? '#64748b' : '#059669', borderColor: subscriptionPlan === 'STARTER' ? '#cbd5e1' : '#a7f3d0', fontWeight: '600', display:'flex', alignItems:'center', gap:'0.4rem'}}
+                title={subscriptionPlan === 'STARTER' ? 'CSV Export is exclusive to Pro & Enterprise' : 'Download inventory spreadsheet'}
+              >
+                <Download size={15} /> Export CSV {subscriptionPlan === 'STARTER' ? '🔒' : ''}
               </button>
             </div>
           </div>
