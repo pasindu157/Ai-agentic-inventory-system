@@ -232,7 +232,7 @@ const StoreOwnerDashboard = () => {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await api.post('agents/recommendations/ask/', { question: aiQuery }, {
+      const response = await api.post('agents/recommendations/ask/', { query: aiQuery }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAiResponse(response.data.answer);

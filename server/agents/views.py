@@ -46,7 +46,7 @@ class AIRecommendationViewSet(viewsets.ModelViewSet):
         if user.role != 'ADMIN' and user.store.subscription_plan != 'ENTERPRISE':
             return Response({"error": "AI Analyst Chat is exclusive to the Enterprise AI Plan. Please upgrade your subscription to unlock Gemini."}, status=403)
 
-        query = request.data.get('query', '')
+        query = request.data.get('query') or request.data.get('question') or ''
         if not query.strip():
             return Response({"error": "Query cannot be empty."}, status=400)
 

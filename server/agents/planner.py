@@ -114,3 +114,7 @@ class PlannerAgent:
         except Exception as e:
             print(f"Ad-hoc AI chat failed: {e}")
             raise ValueError(f"Gemini API returned an error: {str(e)}")
+
+    def ask_analyst(self, query):
+        """Alias for ask_question for endpoint compatibility."""
+        return self.ask_question(query)
