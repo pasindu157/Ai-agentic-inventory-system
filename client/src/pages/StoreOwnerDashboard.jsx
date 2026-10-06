@@ -212,8 +212,9 @@ const StoreOwnerDashboard = () => {
       
       setShowAI(true);
     } catch (error) {
-      console.error(error);
-      alert("Failed to generate Agentic AI insights.");
+      console.error("AI Insights Error:", error);
+      const msg = error.response?.data?.error || error.response?.data?.detail || "Failed to generate Agentic AI insights.";
+      alert(`⚠️ ${msg}`);
     } finally {
       setGeneratingAI(false);
     }

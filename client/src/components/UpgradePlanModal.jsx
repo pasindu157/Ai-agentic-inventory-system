@@ -18,9 +18,10 @@ const UpgradePlanModal = ({ isOpen, onClose, currentPlan, onPlanUpgraded }) => {
       const response = await api.post('users/upgrade-plan/', { plan: planKey }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert(`🎉 ${response.data.message}`);
+      alert(` ${response.data.message}`);
+      const updatedPlan = response.data.subscription_plan || (response.data.store && response.data.store.subscription_plan) || planKey;
       if (onPlanUpgraded) {
-        onPlanUpgraded(response.data.store.subscription_plan);
+        onPlanUpgraded(updatedPlan);
       }
       onClose();
     } catch (err) {

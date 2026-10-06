@@ -33,7 +33,7 @@ class AIRecommendationViewSet(viewsets.ModelViewSet):
         try:
             created = planner.generate_recommendations()
             log_audit_event(user, 'AI_RECOMMENDATIONS_GENERATED', f"Generated AI recommendations for store '{user.store.name}'", request)
-            return Response({"status": "success", "count": len(created)})
+            return Response({"status": "success", "count": created})
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 

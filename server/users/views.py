@@ -58,7 +58,12 @@ class UpgradePlanView(APIView):
 
         return Response({
             'message': f'Subscription upgraded to {new_plan} successfully!',
-            'subscription_plan': user.store.subscription_plan
+            'subscription_plan': user.store.subscription_plan,
+            'store': {
+                'id': user.store.id,
+                'name': user.store.name,
+                'subscription_plan': user.store.subscription_plan
+            }
         }, status=status.HTTP_200_OK)
 
 class AdminPlatformOverviewView(APIView):
