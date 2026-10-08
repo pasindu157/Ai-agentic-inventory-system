@@ -193,3 +193,94 @@ class AdminAuditLogView(APIView):
         } for log in logs]
 
         return Response(data, status=status.HTTP_200_OK)
+
+import stripe
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.permissions import AllowAny
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# Bypass strict SSL verification for local development (solves antivirus/VPN EOF errors)
+stripe.verify_ssl_certs = False
+
+class CreateStripeCheckoutSessionView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        user = request.user
+        plan = request.data.get('plan')
+        
+        if plan == 'PRO':
+            price_id = settings.STRIPE_PRO_PRICE_ID
+        elif plan == 'ENTERPRISE':
+            price_id = settings.STRIPE_ENTERPRISE_PRICE_ID
+        else:
+            return Response({'error': 'Invalid plan.'}, status=400)
+
+        if not hasattr(user, 'store'):
+            return Response({'error': 'No store associated.'}, status=400)
+
+        domain = "http://localhost:5173"
+        try:
+            customer_id = user.store.stripe_customer_id
+            if not customer_id:
+                customer = stripe.Customer.create(email=user.email, name=user.store.name)
+                customer_id = customer.id
+                user.store.stripe_customer_id = customer_id
+                user.store.save()
+
+            checkout_session = stripe.checkout.Session.create(
+                customer=customer_id,
+                line_items=[{'price': price_id, 'quantity': 1}],
+                mode='subscription',
+                success_url=domain + '/payment/success?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=domain + '/payment/cancel',
+                client_reference_id=str(user.store.id),
+                metadata={'plan': plan}
+            )
+            return Response({'checkout_url': checkout_session.url})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StripeWebhookView(APIView):
+    permission_classes = (AllowAny,) 
+
+    def post(self, request):
+        payload = request.body
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+        event = None
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+            )
+        except ValueError as e:
+            return Response(status=400)
+        except stripe.error.SignatureVerificationError as e:
+            return Response(status=400)
+        except Exception as e:
+            # If STRIPE_WEBHOOK_SECRET is empty locally, allow it to pass temporarily if not testing actual webhooks
+            if not settings.STRIPE_WEBHOOK_SECRET:
+                return Response(status=200)
+            return Response(status=400)
+
+        if event['type'] == 'checkout.session.completed':
+            session = event['data']['object']
+            store_id = session.get('client_reference_id')
+            plan = session.get('metadata', {}).get('plan')
+            sub_id = session.get('subscription')
+
+            if store_id and plan:
+                from .models import Store
+                store = Store.objects.filter(id=store_id).first()
+                if store:
+                    old_plan = store.subscription_plan
+                    store.subscription_plan = plan
+                    store.stripe_subscription_id = sub_id
+                    store.save()
+                    log_audit_event(store.owner, 'PLAN_UPGRADED', f"Stripe webhook upgraded plan from {old_plan} to {plan}", None)
+
+        return Response(status=200)

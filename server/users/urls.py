@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     RegisterView, UserProfileView, LogoutView, UpgradePlanView,
-    AdminPlatformOverviewView, AdminChangeStorePlanView, AdminToggleStoreActiveView, AdminAuditLogView
+    AdminPlatformOverviewView, AdminChangeStorePlanView, AdminToggleStoreActiveView, AdminAuditLogView,
+    CreateStripeCheckoutSessionView, StripeWebhookView
 )
 
 urlpatterns = [
@@ -13,4 +14,7 @@ urlpatterns = [
     path('admin/change-store-plan/', AdminChangeStorePlanView.as_view(), name='admin-change-store-plan'),
     path('admin/toggle-store-active/', AdminToggleStoreActiveView.as_view(), name='admin-toggle-store-active'),
     path('admin/audit-logs/', AdminAuditLogView.as_view(), name='admin-audit-logs'),
+    
+    path('payments/create-checkout-session/', CreateStripeCheckoutSessionView.as_view(), name='create-checkout-session'),
+    path('payments/webhook/', StripeWebhookView.as_view(), name='stripe-webhook'),
 ]

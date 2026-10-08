@@ -15,21 +15,35 @@ const UpgradePlanModal = ({ isOpen, onClose, currentPlan, onPlanUpgraded }) => {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await api.post('users/upgrade-plan/', { plan: planKey }, {
+      
+      if (planKey === 'STARTER') {
+        const response = await api.post('users/upgrade-plan/', { plan: planKey }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert(`🎉 ${response.data.message}`);
+        if (onPlanUpgraded) onPlanUpgraded('STARTER');
+        onClose();
+        setUpgrading(false);
+        return;
+      }
+
+      const response = await api.post('users/payments/create-checkout-session/', { plan: planKey }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert(` ${response.data.message}`);
-      const updatedPlan = response.data.subscription_plan || (response.data.store && response.data.store.subscription_plan) || planKey;
-      if (onPlanUpgraded) {
-        onPlanUpgraded(updatedPlan);
+      
+      if (response.data.checkout_url) {
+        localStorage.setItem('pending_stripe_plan', planKey);
+        window.location.href = response.data.checkout_url;
+      } else {
+        throw new Error("Missing checkout URL");
       }
-      onClose();
     } catch (err) {
       console.error("Plan upgrade failed:", err);
-      alert("Failed to update subscription plan. Please try again.");
-    } finally {
+      const msg = err.response?.data?.error || "Failed to initialize payment. Please try again.";
+      alert(`⚠️ ${msg}`);
       setUpgrading(false);
     }
+    // Note: finally { setUpgrading(false) } is removed because we want the button to stay loading while redirecting
   };
 
   const plans = [
