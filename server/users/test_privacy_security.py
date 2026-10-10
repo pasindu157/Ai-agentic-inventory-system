@@ -75,7 +75,7 @@ class PrivacyAndSecurityTestCase(TestCase):
 
     def test_08_starter_plan_product_limit_enforced(self):
         self.client.force_authenticate(user=self.user_a)
-        for i in range(4): Product.objects.create(name=f'P{i}', store=self.store_a, current_stock=1, reorder_level=1, unit_cost=10)
+        for i in range(4): Product.objects.create(name=f'P{i}', sku=f'SKU-TEST-{i}', store=self.store_a, current_stock=1, reorder_level=1, unit_cost=10)
         response = self.client.post('/api/inventory/products/', {'name': 'Excess Product', 'current_stock': 5, 'reorder_level': 2, 'unit_cost': 15.00})
         print(f"\n[EVIDENCE TC-08] Subscription Rate Limit / Quota Enforcement")
         print(f"-> Starter_Plan attempt to create product #6 blocked at boundary. HTTP: {response.status_code}")
@@ -89,7 +89,7 @@ class PrivacyAndSecurityTestCase(TestCase):
         self.assertNotIn('password', response.data)
 
     def test_10_audit_log_created_on_registration(self):
-        response = self.client.post('/api/users/register/', {'username': 'new_u', 'password': 'X', 'email': 'a@a.com', 'store_name': 'New'})
+        response = self.client.post('/api/users/register/', {'username': 'new_u', 'password': 'StrongPassword123!', 'email': 'a@a.com', 'store_name': 'New'})
         print(f"\n[EVIDENCE TC-10] DB Audit Logger: Autonomous Registration Tracking")
         print(f"-> Audit system accurately triggered 'USER_REGISTERED' system action node.")
         self.assertTrue(AuditLog.objects.filter(action='USER_REGISTERED').exists())
